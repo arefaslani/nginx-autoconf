@@ -18,6 +18,7 @@ async function handleEvent(event) {
     for(networkName in container.NetworkSettings.Networks) break;
 
     return { virtualHost: container.Labels['app.virtual_host'],
+             virtualPort: container.Labels['app.virtual_port'],
              ip: container.NetworkSettings.Networks[networkName].IPAddress };
   });
 
@@ -28,8 +29,9 @@ async function handleEvent(event) {
                 .map(item => {
                   i = _.clone(item);
                   i[0] = item[0];
-                  i[1] = item[1].map(currentItem => currentItem.ip)
-                  return _.zipObject(['serverName', 'ips'], i)
+                  i[1] = item[1][0].virtualPort;
+                  i[2] = item[1].map(currentItem => currentItem.ip);
+                  return _.zipObject(['serverName', 'port', 'ips'], i);
                 })
                 .value();
 

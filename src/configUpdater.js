@@ -6,7 +6,11 @@ const template = fs.readFileSync(path.resolve(__dirname, 'template.conf'), { enc
 
 function parseParams(config) {
   upstreamServers = config.ips.map(ip => {
-    return `server ${ip};\n  `
+    if (config.port) {
+      return `server ${ip}:${config.port};\n  `
+    } else {
+      return `server ${ip};\n  `
+    }
   });
   return {
     upstreams: upstreamServers.join('').trim(),
