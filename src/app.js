@@ -2,46 +2,34 @@ const Docker = require("dockerode");
 const JSONStream = require("JSONStream");
 const util = require("util");
 const fs = require("fs");
-const find = require('lodash').find
+const path = require("path");
 
 const DOCKER_CERT_PATH = "/Users/admin/.docker/machine/machines/node1";
+const DOCKER_HOST = "192.168.99.100";
+const DOCKER_PORT = 2376;
 
 // const docker = new Docker({ socketPath: "/var/run/docker.sock" });
 const docker = new Docker({
   protocol: "https",
-  host: "192.168.99.100",
-  port: 2376,
-  ca: fs.readFileSync(DOCKER_CERT_PATH + "/ca.pem"),
-  cert: fs.readFileSync(DOCKER_CERT_PATH + "/cert.pem"),
-  key: fs.readFileSync(DOCKER_CERT_PATH + "/key.pem")
+  host: DOCKER_HOST,
+  port: DOCKER_PORT,
+  ca: fs.readFileSync(path.resolve(DOCKER_CERT_PATH, "ca.pem")),
+  cert: fs.readFileSync(path.resolve(DOCKER_CERT_PATH, "cert.pem")),
+  key: fs.readFileSync(path.resolve(DOCKER_CERT_PATH, "key.pem"))
 });
 
 async function handleEvent(event) {
-  let upstreams = {};
-  if (event.Type == 'container') {
-    if (['start', 'stop'].includes(event.Action)) {
-      const container = docker.getContainer(event.Actor.ID);
-      const inspect = await container.inspect();
-      let envKeys = [];
-      const envKeyValues = inspect.Config.Env.map(v => {
-        const [key, value] = v.split('=');
-        envKeys.push(key);
-        return { key, value };
-      });
+  // filter containers containing `app.virtual_host` label
+  const containers = await docker.listContainers({"filters": "{\"label\": [\"app.virtual_host\"]}" });
+  const virtualHosts = containers.map(container => {
+    // find first networkName
+    let networkName;
+    for(networkName in container.NetworkSettings.Networks) break;
 
-      if (envKeys.includes('VIRTUAL_HOST')) {
-        const res = find(envKeyValues, o => {
-          return o.key === 'VIRTUAL_HOST'
-        });
-
-        for(let networkName in inspect.NetworkSettings.Networks) {
-          upstreams[res.value] = inspect.NetworkSettings.Networks[networkName].IPAddress;
-          break;
-        }
-      }
-      console.log(util.inspect(upstreams, false, null));
-    }
-  }
+    return { virtualHost: container.Labels['app.virtual_host'],
+             ip: container.NetworkSettings.Networks[networkName].IPAddress };
+  })
+  console.log(`Containers ${util.inspect(virtualHosts, false, null)}`);
 }
 
 async function sendEventStream() {
