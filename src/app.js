@@ -5,21 +5,9 @@ const fs = require("fs");
 const path = require("path");
 const _ = require("lodash");
 
-const updateConfig = require("./configUpdater").updateConfig
+const updateConfig = require("./configUpdater").updateConfig;
 
-const DOCKER_CERT_PATH = "/Users/admin/.docker/machine/machines/node1";
-const DOCKER_HOST = "192.168.99.100";
-const DOCKER_PORT = 2376;
-
-// const docker = new Docker({ socketPath: "/var/run/docker.sock" });
-const docker = new Docker({
-  protocol: "https",
-  host: DOCKER_HOST,
-  port: DOCKER_PORT,
-  ca: fs.readFileSync(path.resolve(DOCKER_CERT_PATH, "ca.pem")),
-  cert: fs.readFileSync(path.resolve(DOCKER_CERT_PATH, "cert.pem")),
-  key: fs.readFileSync(path.resolve(DOCKER_CERT_PATH, "key.pem"))
-});
+const docker = new Docker();
 
 async function handleEvent(event) {
   // filter containers containing `app.virtual_host` label
@@ -33,6 +21,7 @@ async function handleEvent(event) {
              ip: container.NetworkSettings.Networks[networkName].IPAddress };
   });
 
+  // create config object as: `{ servername: 'foo.test', ips: [192.168.99.100] }`
   const data = _.chain(virtualHosts)
                 .groupBy('virtualHost')
                 .toPairs()

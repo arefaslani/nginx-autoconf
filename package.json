@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "start": "node ./src/app.js"
+  },
   "dependencies": {
     "JSONStream": "^1.3.2",
     "dockerode": "^2.5.5",
