@@ -3,6 +3,9 @@ const JSONStream = require("JSONStream");
 const util = require("util");
 const fs = require("fs");
 const path = require("path");
+const _ = require("lodash");
+
+const updateConfig = require("./configUpdater").updateConfig
 
 const DOCKER_CERT_PATH = "/Users/admin/.docker/machine/machines/node1";
 const DOCKER_HOST = "192.168.99.100";
@@ -28,8 +31,20 @@ async function handleEvent(event) {
 
     return { virtualHost: container.Labels['app.virtual_host'],
              ip: container.NetworkSettings.Networks[networkName].IPAddress };
-  })
-  console.log(`Containers ${util.inspect(virtualHosts, false, null)}`);
+  });
+
+  const data = _.chain(virtualHosts)
+                .groupBy('virtualHost')
+                .toPairs()
+                .map(item => {
+                  i = _.clone(item);
+                  i[0] = item[0];
+                  i[1] = item[1].map(currentItem => currentItem.ip)
+                  return _.zipObject(['serverName', 'ips'], i)
+                })
+                .value();
+
+  handleContainersChanges(data);
 }
 
 async function sendEventStream() {
@@ -42,6 +57,10 @@ async function sendEventStream() {
 
 async function main() {
   await sendEventStream();
+}
+
+function handleContainersChanges(config) {
+  config.map(conf => updateConfig(conf));
 }
 
 main();
