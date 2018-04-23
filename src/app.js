@@ -6,6 +6,7 @@ const path = require("path");
 const _ = require("lodash");
 
 const updateConfig = require("./configUpdater").updateConfig;
+const nginx = require("./nginx");
 
 const docker = new Docker();
 
@@ -36,6 +37,7 @@ async function handleEvent(event) {
                 .value();
 
   handleContainersChanges(data);
+  await nginx.reload(docker);
 }
 
 async function sendEventStream() {
