@@ -11,16 +11,20 @@ const nginx = require("./nginx");
 const docker = new Docker();
 
 async function findVirtualHosts() {
-    // filter containers containing `app.virtual_host` label
-  const containers = await docker.listContainers({"filters": "{\"label\": [\"app.virtual_host\"]}" });
+  // filter containers containing `app.virtual_host` label
+  const containers = await docker.listContainers({
+    filters: '{"label": ["app.virtual_host"]}'
+  });
   const virtualHosts = containers.map(container => {
     // find first networkName
     let networkName;
-    for(networkName in container.NetworkSettings.Networks) break;
+    for (networkName in container.NetworkSettings.Networks) break;
 
-    return { virtualHost: container.Labels['app.virtual_host'],
-             virtualPort: container.Labels['app.virtual_port'],
-             ip: container.NetworkSettings.Networks[networkName].IPAddress };
+    return {
+      virtualHost: container.Labels["app.virtual_host"],
+      virtualPort: container.Labels["app.virtual_port"],
+      ip: container.NetworkSettings.Networks[networkName].IPAddress
+    };
   });
 
   return virtualHosts;
@@ -29,21 +33,30 @@ async function findVirtualHosts() {
 async function groupVirtualHostsByServerName(virtualHosts) {
   // create config object as: `{ servername: 'foo.test', ips: [192.168.99.100] }`
   const data = _.chain(virtualHosts)
-                .groupBy('virtualHost')
-                .toPairs()
-                .map(item => {
-                  i = _.clone(item);
-                  i[0] = item[0];
-                  i[1] = item[1][0].virtualPort;
-                  i[2] = item[1].map(currentItem => currentItem.ip);
-                  return _.zipObject(['serverName', 'port', 'ips'], i);
-                })
-                .value();
+    .groupBy("virtualHost")
+    .toPairs()
+    .map(item => {
+      i = _.clone(item);
+      i[0] = item[0];
+      i[1] = item[1][0].virtualPort;
+      i[2] = item[1].map(currentItem => currentItem.ip);
+      return _.zipObject(["serverName", "port", "ips"], i);
+    })
+    .value();
 
   return data;
 }
 
 async function handleEvent(event) {
+  if (
+    !(
+      event.Type === "container" &&
+      ["stop", "start", "restart", "create", "destroy"].includes(event.Action)
+    )
+  ) {
+    return false;
+  }
+  console.log(`Container ${event.Action}: ${event.Actor.ID}`);
   await handleContainersChanges();
 }
 
