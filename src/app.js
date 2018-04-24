@@ -10,8 +10,8 @@ const nginx = require("./nginx");
 
 const docker = new Docker();
 
-async function handleEvent(event) {
-  // filter containers containing `app.virtual_host` label
+async function findVirtualHosts() {
+    // filter containers containing `app.virtual_host` label
   const containers = await docker.listContainers({"filters": "{\"label\": [\"app.virtual_host\"]}" });
   const virtualHosts = containers.map(container => {
     // find first networkName
@@ -23,6 +23,10 @@ async function handleEvent(event) {
              ip: container.NetworkSettings.Networks[networkName].IPAddress };
   });
 
+  return virtualHosts;
+}
+
+async function groupVirtualHostsByServerName(virtualHosts) {
   // create config object as: `{ servername: 'foo.test', ips: [192.168.99.100] }`
   const data = _.chain(virtualHosts)
                 .groupBy('virtualHost')
@@ -36,8 +40,11 @@ async function handleEvent(event) {
                 })
                 .value();
 
-  handleContainersChanges(data);
-  await nginx.reload(docker);
+  return data;
+}
+
+async function handleEvent(event) {
+  await handleContainersChanges();
 }
 
 async function sendEventStream() {
@@ -49,11 +56,15 @@ async function sendEventStream() {
 }
 
 async function main() {
+  handleContainersChanges();
   await sendEventStream();
 }
 
-function handleContainersChanges(config) {
-  config.map(conf => updateConfig(conf));
+async function handleContainersChanges() {
+  const virtualHosts = await findVirtualHosts();
+  const data = await groupVirtualHostsByServerName(virtualHosts);
+  data.map(conf => updateConfig(conf));
+  await nginx.reload(docker);
 }
 
 main();
