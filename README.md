@@ -39,6 +39,7 @@ services:
 ```
 
 Nginx Autoconf will create a nginx conf file from the template and palces it in `/etc/nginx/conf.d` directory.
+
 ```nginx
 upstream backend {
   server 10.0.0.2:3000 # ip will be fetched automatically
@@ -63,7 +64,7 @@ server {
 ```
 
 Add this line to your `/etc/hosts` file:
-```ruby
+```bash
 # IP must be the IP of docker host.
 127.0.0.1 sample-express.test
 ```
@@ -74,6 +75,70 @@ docker stack deploy --compose-file docker-compose.yml mystack
 ```
 Thats all!
 
+## HTTPS support
+### Using LetsEncrypt
+First of all you should create cert files and store them in a shared volume. Create a named volume
+
+```bash
+docker volume create nginx-certs
+```
+
+run `certbot` container and connect it to the `nginx-certs` volume to save certificate files there
+
+```bash
+docker run -it --rm -p 443:443 -p 80:80 -v nginx-certs:/etc/letsencrypt certbot/certbot certonly
+```
+
+and answer the questions
+
+```bash
+How would you like to authenticate with the ACME CA?
+-------------------------------------------------------------------------------
+1: Spin up a temporary webserver (standalone)
+2: Place files in webroot directory (webroot)
+-------------------------------------------------------------------------------
+Select the appropriate number [1-2] then [enter] (press 'c' to cancel): 1
+
+Plugins selected: Authenticator standalone, Installer None
+Please enter in your domain name(s) (comma and/or space separated)  (Enter 'c' to cancel): your-public-domain.com
+```
+
+change your `docker-compose` file to support `https`:
+
+```yaml
+version: "3.1"
+
+volumes:
+  nginx-confs:
+  nginx-certs:
+    external: true
+
+services:
+  nginx-autoconf:
+    image: arefaslani/nginx-autoconf
+    volumes:
+      - nginx-data:/etc/nginx/conf.d
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  nginx:
+    image: nginx
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - nginx-confs:/etc/nginx/conf.d
+      - nginx-certs:/etc/letsencrypt
+
+  app:
+    image: arefaslani/docker-sample-express
+    ports:
+      - 3000:3000
+    labels:
+      - app.virtual_host=sample-express.test
+      - app.virtual_port=3000
+      - app.https=true
+```
+
 ## Todo
 * Support custom templates for apps
-* Show how to setup https configuration with `Letsencrupt`
+* ~~Show how to setup https configuration with `Letsencrupt`~~ (done)
