@@ -23,6 +23,7 @@ async function findVirtualHosts() {
     return {
       virtualHost: container.Labels["app.virtual_host"],
       virtualPort: container.Labels["app.virtual_port"],
+      https: container.Labels["app.https"],
       ip: container.NetworkSettings.Networks[networkName].IPAddress
     };
   });
@@ -39,8 +40,9 @@ async function groupVirtualHostsByServerName(virtualHosts) {
       i = _.clone(item);
       i[0] = item[0];
       i[1] = item[1][0].virtualPort;
-      i[2] = item[1].map(currentItem => currentItem.ip);
-      return _.zipObject(["serverName", "port", "ips"], i);
+      i[2] = item[1][0].https;
+      i[3] = item[1].map(currentItem => currentItem.ip);
+      return _.zipObject(["serverName", "port", "https", "ips"], i);
     })
     .value();
 

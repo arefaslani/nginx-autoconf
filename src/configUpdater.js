@@ -1,8 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 const Mustache = require("mustache");
+const { inspect } = require("util");
 
-const template = fs.readFileSync(path.resolve(__dirname, 'template.conf'), { encoding: 'utf8' });
+let templateName = "template.conf";
 
 function parseParams(config) {
   upstreamServers = config.ips.map(ip => {
@@ -20,6 +21,17 @@ function parseParams(config) {
 
 module.exports = {
   updateConfig(config) {
+    if (config.https === 'true') {
+      templateName = "ssl_template.conf";
+    }
+
+    console.log(`Using template ${templateName}`);
+
+    const template = fs.readFileSync(
+      path.resolve(__dirname, templateName),
+      { encoding: "utf8" }
+    );
+
     nginxConf = Mustache.render(template, parseParams(config));
     fs.writeFileSync(`/etc/nginx/conf.d/${config.serverName}.conf`, nginxConf);
   }
