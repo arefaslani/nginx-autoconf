@@ -139,6 +139,74 @@ services:
       - app.https=true
 ```
 
+## Custom templates
+If you want to use custom templates instead of predefined templates, make another image on top of nginx-autoconf.
+
+Create an nginx template file. For example `./path/to/your/templates/temp.conf`
+
+```nginx
+upstream api {
+  {{upstreams}}
+}
+
+server {
+  listen 80;
+  server_name {{serverName}};
+
+  location / {
+    ...
+  }
+  ...
+}
+```
+
+and a Dockerfile
+
+```Dockerfile
+FROM arefaslani/nginx-autoconf
+COPY ./path/to/your/tamplates/folder /app/src/templates/custom
+```
+
+build your docker image
+
+`docker build -t my-nginx-autoconf .`
+
+and use that image in your compose file
+
+```yaml
+version: "3.1"
+
+volumes:
+  nginx-confs:
+  nginx-certs:
+    external: true
+
+services:
+  nginx-autoconf:
+    image: you/my-nginx-autoconf
+    volumes:
+      - nginx-data:/etc/nginx/conf.d
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  nginx:
+    image: nginx
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - nginx-confs:/etc/nginx/conf.d
+      - nginx-certs:/etc/letsencrypt
+
+  app:
+    image: arefaslani/docker-sample-express
+    ports:
+      - 3000:3000
+    labels:
+      - app.virtual_host=sample-express.test
+      - app.virtual_port=3000
+      - app.template_name=test.conf
+```
+
 ## Todo
-* Support custom templates for apps
+* ~~Support custom templates for apps~~ (done)
 * ~~Show how to setup https configuration with `Letsencrupt`~~ (done)
