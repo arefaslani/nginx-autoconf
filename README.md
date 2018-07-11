@@ -1,3 +1,5 @@
+# DEPRECATED: Closed in favor of [this comment](https://github.com/jwilder/nginx-proxy/issues/927#issuecomment-391334432)
+
 # Nginx Autoconf (works with Swarm)
 A docker container for automatically create nginx configuration files from a template inspired by [docker-gen](https://github.com/jwilder/docker-gen).
 
